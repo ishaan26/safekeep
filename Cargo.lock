@@ -22,7 +22,7 @@ dependencies = [
 
 [[package]]
 name = "safekeep"
-version = "0.0.1"
+version = "0.0.2"
 dependencies = [
  "serde",
  "thiserror",
