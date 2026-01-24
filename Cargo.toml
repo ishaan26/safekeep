@@ -12,3 +12,5 @@ categories = ["filesystem", "cryptography", "compression"]
 readme = "README.md"
 
 [dependencies]
+thiserror = "2.0.18"
+serde = { version = "1.0.228", features = ["derive", "std"] }

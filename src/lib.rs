@@ -1,14 +1,9 @@
-pub fn add(left: u64, right: u64) -> u64 {
-    left + right
-}
+mod error;
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+use error::BackupError;
+use std::path::Path;
 
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
-    }
+/// Only the types that implement this trait can be backed-up.
+pub trait BackupType {
+    fn backup(&self, path: &Path) -> Result<(), BackupError>;
 }
