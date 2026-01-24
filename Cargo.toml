@@ -1,0 +1,14 @@
+[package]
+name = "safekeep"
+authors = ["Ishaan Goel <ishaangoel.99@gmail.com>"]
+description = "A flexible backup library with trait-based file handling, compression, and encryption"
+version = "0.0.1"
+edition = "2024"
+license = "MIT"
+homepage = "https://github.com/ishaan26/safekeep"
+repository = "https://github.com/ishaan26/safekeep"
+keywords = ["backup", "compression", "encryption", "archive"]
+categories = ["filesystem", "cryptography", "compression"]
+readme = "README.md"
+
+[dependencies]
