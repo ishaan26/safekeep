@@ -1,6 +1,7 @@
 mod error;
 
 use error::BackupError;
+use serde::Serialize;
 use std::path::{Path, PathBuf};
 
 /// Options and flags which can be used to configure how data is backed.
@@ -13,13 +14,16 @@ pub struct BackupOptions {
 
 /// Only the types that implement this trait can be backed-up.
 pub trait BackupType {
-    fn backup(&self) -> Result<(), BackupError>;
+    fn backup(&self) -> Result<serde_json::Value, BackupError>;
 }
 
-impl<T> BackupType for Vec<T> {
+impl<T> BackupType for T
+where
+    T: Serialize,
+{
     /// TODO: What to do inside here?
-    fn backup(&self) -> Result<(), BackupError> {
-        Ok(())
+    fn backup(&self) -> Result<serde_json::Value, BackupError> {
+        Ok(serde_json::to_value(self)?)
     }
 }
 
@@ -77,21 +81,12 @@ impl Default for BackupOptions {
 mod tests {
     use super::*;
 
+    #[derive(Serialize)]
     struct MockBackup;
+
     #[allow(dead_code)]
+    #[derive(Serialize)]
     struct MockBackupOther(bool);
-
-    impl BackupType for MockBackup {
-        fn backup(&self) -> Result<(), BackupError> {
-            Ok(())
-        }
-    }
-
-    impl BackupType for MockBackupOther {
-        fn backup(&self) -> Result<(), BackupError> {
-            Ok(())
-        }
-    }
 
     #[test]
     fn test_defaults() {
@@ -118,6 +113,10 @@ mod tests {
         assert_eq!(opts.backup_data.len(), 2);
         opts.backup_data(Vec::from(["s", "t"]));
         assert_eq!(opts.backup_data.len(), 3);
+        opts.backup_data("Just a &str");
+        assert_eq!(opts.backup_data.len(), 4);
+        opts.backup_data(1);
+        assert_eq!(opts.backup_data.len(), 5);
     }
 
     #[test]

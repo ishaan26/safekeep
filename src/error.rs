@@ -16,6 +16,9 @@ pub enum BackupError {
     /// An error occurred during database backup.
     #[error("Database backup failed: {0}")]
     Database(String),
+    /// Serialisation Error
+    #[error("Serialization of the provided type failed: {0}")]
+    Ser(String),
     /// An internal error occurred (e.g., serialization, Tauri, or other unexpected errors).
     #[error("Internal Error Occured: {0}")]
     Other(String),
@@ -24,5 +27,11 @@ pub enum BackupError {
 impl From<std::io::Error> for BackupError {
     fn from(err: std::io::Error) -> Self {
         BackupError::Io(err.to_string())
+    }
+}
+
+impl From<serde_json::Error> for BackupError {
+    fn from(err: serde_json::Error) -> Self {
+        BackupError::Ser(err.to_string())
     }
 }
