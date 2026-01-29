@@ -4,7 +4,10 @@ pub use error::BackupError;
 pub use safekeep_derive::BackupType;
 use serde::Serialize;
 
-use std::path::{Path, PathBuf};
+use std::{
+    fs,
+    path::{Path, PathBuf},
+};
 
 /// Options and flags which can be used to configure how data is backed.
 pub struct BackupOptions {
@@ -186,8 +189,24 @@ impl BackupOptions {
     }
 
     /// Run the backup
-    pub async fn run(self) -> Result<(), BackupError> {
-        todo!()
+    pub fn run(&mut self) -> Result<(), BackupError> {
+        for data in &self.backup_data {
+            let bytes = data.backup_bytes()?;
+            let name = data.name();
+            let ext = data.extension();
+
+            // TODO:
+            // - compression
+            // - encryption
+            // - backup index
+
+            let path = self.path.join(format!("{name}.{ext}"));
+
+            fs::create_dir_all(&self.path)?;
+            fs::write(path, bytes)?;
+        }
+
+        Ok(())
     }
 }
 

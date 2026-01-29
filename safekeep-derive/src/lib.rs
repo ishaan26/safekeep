@@ -111,6 +111,7 @@ fn parse_safekeep_format(input: &DeriveInput) -> String {
             }
         }
     }
+
     // Default to json if no format specified
     "json".to_string()
 }
