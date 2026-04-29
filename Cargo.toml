@@ -25,4 +25,4 @@ safekeep-derive = { path = "./safekeep-derive" }
 # Optional serialization format dependencies
 serde_json = { version = "1.0.149", optional = true }
 serde_yaml = { version = "0.9.34", optional = true }
-toml = { version = "0.9.11", optional = true }
+toml = { version = "0.9.12", optional = true }
