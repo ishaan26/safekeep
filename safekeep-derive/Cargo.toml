@@ -1,0 +1,16 @@
+[package]
+name = "safekeep-derive"
+version = "0.0.2"
+edition = "2024"
+license = "MIT"
+description = "Derive macro for safekeep backup library"
+repository = "https://github.com/ishaan26/safekeep"
+
+[lib]
+proc-macro = true
+
+[dependencies]
+syn = { version = "2.0.114", features = ["full", "parsing"] }
+quote = "1.0.44"
+proc-macro2 = "1.0.106"
+proc-macro-crate = "3.4.0"

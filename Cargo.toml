@@ -11,6 +11,18 @@ keywords = ["backup", "compression", "encryption", "archive"]
 categories = ["filesystem", "cryptography", "compression"]
 readme = "README.md"
 
+[features]
+default = ["json", "yaml", "toml_format"]
+json = ["serde_json"]
+yaml = ["serde_yaml"]
+toml_format = ["toml"]
+
 [dependencies]
 thiserror = "2.0.18"
 serde = { version = "1.0.228", features = ["derive", "std"] }
+safekeep-derive = { path = "./safekeep-derive" }
+
+# Optional serialization format dependencies
+serde_json = { version = "1.0.149", optional = true }
+serde_yaml = { version = "0.9.34", optional = true }
+toml = { version = "0.9.12", optional = true }
