@@ -90,6 +90,8 @@ pub fn derive_backup_type(input: TokenStream) -> TokenStream {
                 #extension
             }
         }
+
+        impl #impl_generics #safekeep::NamedBackupType for #name #ty_generics #where_clause {}
     };
 
     TokenStream::from(expanded)

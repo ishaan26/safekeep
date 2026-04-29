@@ -26,3 +26,6 @@ target
 
 # test files
 test_files
+test.yaml
+test.json
+test.toml

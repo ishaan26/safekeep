@@ -9,10 +9,39 @@ use std::{
     path::{Path, PathBuf},
 };
 
+/// A single backup entry, consisting of the data and a name for the file.
+pub struct BackupEntry {
+    data: Box<dyn BackupType>,
+    name: String,
+}
+
+impl<T: NamedBackupType + 'static> From<T> for BackupEntry {
+    fn from(data: T) -> Self {
+        Self {
+            name: data.name().to_string(),
+            data: Box::new(data),
+        }
+    }
+}
+
+/// Trait representing a value ready to be backed up with a name.
+///
+/// Implemented automatically for:
+/// - Struct types that `#[derive(BackupType)]` (auto-named by struct name)
+/// - Any `BackupType` wrapped with `.with_name("name")`
+#[diagnostic::on_unimplemented(
+    message = "this type needs an explicit name for backup",
+    label = "use `.with_name(\"name\")` to give this value a backup name",
+    note = "Types that `#[derive(BackupType)]` are auto-named by their struct name.\nAll other types (Vec, String, primitives, etc.) require `.with_name(\"name\")`."
+)]
+pub trait BackupInput {
+    fn into_entry(self) -> BackupEntry;
+}
+
 /// Options and flags which can be used to configure how data is backed.
 pub struct BackupOptions {
     path: PathBuf,
-    backup_data: Vec<Box<dyn BackupType>>,
+    backup_data: Vec<BackupEntry>,
     with_compression: bool,
     with_encryption: bool,
 }
@@ -42,6 +71,72 @@ pub trait BackupType {
 
     /// Returns the name of the type.
     fn name(&self) -> &'static str;
+}
+
+/// Marker trait for types that can be backed up using their type name.
+///
+/// This is automatically implemented by `#[derive(BackupType)]` for structs.
+/// Standard types (Vec, String, primitives, etc.) do NOT implement this,
+/// requiring explicit naming via `.with_name()`.
+pub trait NamedBackupType: BackupType {}
+
+/// A wrapper that provides an explicit name for backup data.
+pub struct WithName<T: BackupType> {
+    data: T,
+    name: String,
+}
+
+impl<T: BackupType> BackupType for WithName<T> {
+    fn backup_bytes(&self) -> Result<Vec<u8>, BackupError> {
+        self.data.backup_bytes()
+    }
+
+    fn extension(&self) -> &'static str {
+        self.data.extension()
+    }
+
+    fn name(&self) -> &'static str {
+        // This is a bit of a hack - we return a static str, but our name is owned.
+        // In practice, this method won't be called on WithName wrappers
+        // because we use Into<BackupEntry> which extracts the name directly.
+        self.data.name()
+    }
+}
+
+/// Extension trait to add explicit naming to any backup type.
+pub trait WithNameExt: BackupType + Sized {
+    /// Wrap this value with an explicit name for backup.
+    fn with_name(self, name: &str) -> WithName<Self>;
+}
+
+impl<T: BackupType + Sized> WithNameExt for T {
+    fn with_name(self, name: &str) -> WithName<Self> {
+        WithName {
+            data: self,
+            name: name.to_string(),
+        }
+    }
+}
+
+impl<T: NamedBackupType + 'static> BackupInput for T {
+    fn into_entry(self) -> BackupEntry {
+        self.into()
+    }
+}
+
+impl<T: BackupType + 'static> BackupInput for WithName<T> {
+    fn into_entry(self) -> BackupEntry {
+        self.into()
+    }
+}
+
+impl<T: BackupType + 'static> From<WithName<T>> for BackupEntry {
+    fn from(wrapped: WithName<T>) -> Self {
+        Self {
+            data: Box::new(wrapped.data),
+            name: wrapped.name,
+        }
+    }
 }
 
 // --- Implementations for Standard Types (Default to JSON) ---
@@ -170,9 +265,19 @@ impl BackupOptions {
         self
     }
 
-    /// Sets the data to be backed up. Run it multiple times to add more types
-    pub fn backup_data(&mut self, data: impl BackupType + 'static) -> &mut Self {
-        self.backup_data.push(Box::new(data));
+    /// Add data to be backed up.
+    ///
+    /// For struct types (deriving `BackupType`), this auto-uses the struct name.
+    /// For other types, you must wrap with `.with_name()`:
+    ///
+    /// ```ignore
+    /// .backup(my_struct)                    // OK: uses "MyStruct"
+    /// .backup(my_struct.with_name("custom")) // OK: uses "custom"
+    /// .backup(vec.with_name("items"))        // OK: uses "items"
+    /// .backup(vec)                           // ERROR: type needs an explicit name
+    /// ```
+    pub fn backup(&mut self, entry: impl BackupInput) -> &mut Self {
+        self.backup_data.push(entry.into_entry());
         self
     }
 
@@ -190,17 +295,15 @@ impl BackupOptions {
 
     /// Run the backup
     pub fn run(&mut self) -> Result<(), BackupError> {
-        for data in &self.backup_data {
-            let bytes = data.backup_bytes()?;
-            let name = data.name();
-            let ext = data.extension();
+        for entry in &self.backup_data {
+            let bytes = entry.data.backup_bytes()?;
+            let ext = entry.data.extension();
+            let path = self.path.join(format!("{}.{ext}", entry.name));
 
             // TODO:
             // - compression
             // - encryption
             // - backup index
-
-            let path = self.path.join(format!("{name}.{ext}"));
 
             fs::create_dir_all(&self.path)?;
             fs::write(path, bytes)?;
@@ -250,18 +353,29 @@ mod tests {
     #[test]
     fn test_backup_data_configuration() {
         let mut opts = BackupOptions::new();
-        opts.backup_data(MockBackup {
+        // Structs work directly (auto-named)
+        opts.backup(MockBackup {
             name: "test".to_string(),
         });
         assert_eq!(opts.backup_data.len(), 1);
-        opts.backup_data(MockBackupOther(true));
+        assert_eq!(opts.backup_data[0].name, "MockBackup");
+
+        opts.backup(MockBackupOther(true));
         assert_eq!(opts.backup_data.len(), 2);
-        opts.backup_data(Vec::from(["s", "t"]));
+        assert_eq!(opts.backup_data[1].name, "MockBackupOther");
+
+        // Non-structs require .with_name()
+        opts.backup(Vec::from(["s", "t"]).with_name("vec_data"));
         assert_eq!(opts.backup_data.len(), 3);
-        opts.backup_data("Just a &str");
+        assert_eq!(opts.backup_data[2].name, "vec_data");
+
+        opts.backup("Just a &str".with_name("str_data"));
         assert_eq!(opts.backup_data.len(), 4);
-        opts.backup_data(1);
+        assert_eq!(opts.backup_data[3].name, "str_data");
+
+        opts.backup(1.with_name("num_data"));
         assert_eq!(opts.backup_data.len(), 5);
+        assert_eq!(opts.backup_data[4].name, "num_data");
     }
 
     #[test]

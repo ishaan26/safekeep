@@ -1,4 +1,4 @@
-use safekeep::{BackupError, BackupOptions, BackupType};
+use safekeep::{BackupError, BackupOptions, BackupType, NamedBackupType, WithNameExt};
 use serde::Serialize;
 
 #[derive(BackupType, Serialize)]
@@ -20,9 +20,9 @@ fn main() -> Result<(), BackupError> {
 
     BackupOptions::new()
         .path("./test_files")
-        .backup_data(a)
-        .backup_data(b)
-        .backup_data(c)
+        .backup(a.with_name("myvec")) // Vec requires explicit name
+        .backup(b) // Struct auto-uses "MyData"
+        .backup(c.with_name("mystring")) // &str requires explicit name
         .run()?;
 
     Ok(())

@@ -1,6 +1,6 @@
 use std::fs;
 
-use safekeep::{BackupError, BackupType};
+use safekeep::{BackupError, BackupType, NamedBackupType};
 use serde::Serialize;
 
 #[derive(BackupType, Serialize)]
